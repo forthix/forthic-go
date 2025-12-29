@@ -8,25 +8,18 @@ import (
 )
 
 // ============================================================================
-// Literal Handler Type
-// ============================================================================
-
-// LiteralHandler takes a string and returns a parsed value or nil if can't parse
-type LiteralHandler func(string) (interface{}, error)
-
-// ============================================================================
 // Boolean Literals
 // ============================================================================
 
 // ToBool parses boolean literals: TRUE, FALSE
-func ToBool(str string) (interface{}, error) {
+func ToBool(str string) (interface{}, bool) {
 	if str == "TRUE" {
-		return true, nil
+		return true, true
 	}
 	if str == "FALSE" {
-		return false, nil
+		return false, true
 	}
-	return nil, nil
+	return nil, false
 }
 
 // ============================================================================
@@ -35,32 +28,32 @@ func ToBool(str string) (interface{}, error) {
 
 // ToFloat parses float literals: 3.14, -2.5, 0.0
 // Must contain a decimal point
-func ToFloat(str string) (interface{}, error) {
+func ToFloat(str string) (interface{}, bool) {
 	if !strings.Contains(str, ".") {
-		return nil, nil
+		return nil, false
 	}
 	result, err := strconv.ParseFloat(str, 64)
 	if err != nil {
-		return nil, nil
+		return nil, false
 	}
-	return result, nil
+	return result, true
 }
 
 // ToInt parses integer literals: 42, -10, 0
 // Must not contain a decimal point
-func ToInt(str string) (interface{}, error) {
+func ToInt(str string) (interface{}, bool) {
 	if strings.Contains(str, ".") {
-		return nil, nil
+		return nil, false
 	}
 	result, err := strconv.ParseInt(str, 10, 64)
 	if err != nil {
-		return nil, nil
+		return nil, false
 	}
 	// Verify it's actually an integer string (not "42abc")
 	if strconv.FormatInt(result, 10) != str {
-		return nil, nil
+		return nil, false
 	}
-	return result, nil
+	return result, true
 }
 
 // ============================================================================
@@ -68,21 +61,21 @@ func ToInt(str string) (interface{}, error) {
 // ============================================================================
 
 // ToTime parses time literals: 9:00, 11:30 PM, 22:15
-func ToTime(str string) (interface{}, error) {
+func ToTime(str string) (interface{}, bool) {
 	// Pattern: HH:MM or HH:MM AM/PM
 	re := regexp.MustCompile(`^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$`)
 	match := re.FindStringSubmatch(str)
 	if match == nil {
-		return nil, nil
+		return nil, false
 	}
 
 	hours, err := strconv.Atoi(match[1])
 	if err != nil {
-		return nil, nil
+		return nil, false
 	}
 	minutes, err := strconv.Atoi(match[2])
 	if err != nil {
-		return nil, nil
+		return nil, false
 	}
 	meridiem := match[3]
 
@@ -97,11 +90,11 @@ func ToTime(str string) (interface{}, error) {
 	}
 
 	if hours > 23 || minutes >= 60 {
-		return nil, nil
+		return nil, false
 	}
 
 	// Return a time.Time with year 0, month 1, day 1 (time-only representation)
-	return time.Date(0, 1, 1, hours, minutes, 0, 0, time.UTC), nil
+	return time.Date(0, 1, 1, hours, minutes, 0, 0, time.UTC), true
 }
 
 // ============================================================================
@@ -111,12 +104,12 @@ func ToTime(str string) (interface{}, error) {
 // ToLiteralDate creates a date literal handler
 // Parses: 2020-06-05, YYYY-MM-DD (with wildcards)
 func ToLiteralDate(timezone *time.Location) LiteralHandler {
-	return func(str string) (interface{}, error) {
+	return func(str string) (interface{}, bool) {
 		// Pattern: YYYY-MM-DD or wildcards (YYYY, MM, DD)
 		re := regexp.MustCompile(`^(\d{4}|YYYY)-(\d{2}|MM)-(\d{2}|DD)$`)
 		match := re.FindStringSubmatch(str)
 		if match == nil {
-			return nil, nil
+			return nil, false
 		}
 
 		now := time.Now().In(timezone)
@@ -127,7 +120,7 @@ func ToLiteralDate(timezone *time.Location) LiteralHandler {
 		if match[1] != "YYYY" {
 			y, err := strconv.Atoi(match[1])
 			if err != nil {
-				return nil, nil
+				return nil, false
 			}
 			year = y
 		}
@@ -135,7 +128,7 @@ func ToLiteralDate(timezone *time.Location) LiteralHandler {
 		if match[2] != "MM" {
 			m, err := strconv.Atoi(match[2])
 			if err != nil {
-				return nil, nil
+				return nil, false
 			}
 			month = m
 		}
@@ -143,13 +136,13 @@ func ToLiteralDate(timezone *time.Location) LiteralHandler {
 		if match[3] != "DD" {
 			d, err := strconv.Atoi(match[3])
 			if err != nil {
-				return nil, nil
+				return nil, false
 			}
 			day = d
 		}
 
 		result := time.Date(year, time.Month(month), day, 0, 0, 0, 0, timezone)
-		return result, nil
+		return result, true
 	}
 }
 
@@ -165,9 +158,9 @@ func ToLiteralDate(timezone *time.Location) LiteralHandler {
 // - 2025-05-24T10:15:00-05:00 (offset timezone)
 // - 2025-05-24T10:15:00 (uses interpreter's timezone)
 func ToZonedDateTime(timezone *time.Location) LiteralHandler {
-	return func(str string) (interface{}, error) {
+	return func(str string) (interface{}, bool) {
 		if !strings.Contains(str, "T") {
-			return nil, nil
+			return nil, false
 		}
 
 		// Handle IANA named timezone in bracket notation (RFC 9557)
@@ -182,7 +175,7 @@ func ToZonedDateTime(timezone *time.Location) LiteralHandler {
 			// Load the timezone
 			loc, err := time.LoadLocation(tzName)
 			if err != nil {
-				return nil, nil
+				return nil, false
 			}
 
 			// Parse the datetime part (before the bracket)
@@ -193,27 +186,27 @@ func ToZonedDateTime(timezone *time.Location) LiteralHandler {
 				// Has offset, parse as RFC3339
 				t, err := time.Parse(time.RFC3339, dtStr)
 				if err != nil {
-					return nil, nil
+					return nil, false
 				}
 				// Convert to the named timezone
-				return t.In(loc), nil
+				return t.In(loc), true
 			}
 
 			// No offset, parse as plain datetime and assign timezone
 			t, err := time.Parse("2006-01-02T15:04:05", dtStr)
 			if err != nil {
-				return nil, nil
+				return nil, false
 			}
-			return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), loc), nil
+			return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), loc), true
 		}
 
 		// Handle explicit UTC (Z suffix)
 		if strings.HasSuffix(str, "Z") {
 			t, err := time.Parse(time.RFC3339, str)
 			if err != nil {
-				return nil, nil
+				return nil, false
 			}
-			return t.UTC(), nil
+			return t.UTC(), true
 		}
 
 		// Handle explicit timezone offset (+05:00, -05:00)
@@ -221,17 +214,17 @@ func ToZonedDateTime(timezone *time.Location) LiteralHandler {
 		if offsetRe.MatchString(str) {
 			t, err := time.Parse(time.RFC3339, str)
 			if err != nil {
-				return nil, nil
+				return nil, false
 			}
 			// Convert to UTC for canonical storage
-			return t.UTC(), nil
+			return t.UTC(), true
 		}
 
 		// No timezone specified, use interpreter's timezone
 		t, err := time.Parse("2006-01-02T15:04:05", str)
 		if err != nil {
-			return nil, nil
+			return nil, false
 		}
-		return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), timezone), nil
+		return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), timezone), true
 	}
 }

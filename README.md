@@ -110,7 +110,7 @@ result, err := interp.ExecuteRemoteWord("python-runtime", "MY-WORD", args)
 
 ## License
 
-Apache 2.0
+BSD 2-CLAUSE
 
 ## Links
 

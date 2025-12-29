@@ -21,8 +21,8 @@ func TestToBool(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := ToBool(tt.input)
-			assert.NoError(t, err)
+			result, ok := ToBool(tt.input)
+			_ = ok
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -45,8 +45,8 @@ func TestToInt(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := ToInt(tt.input)
-			assert.NoError(t, err)
+			result, ok := ToInt(tt.input)
+			_ = ok
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -67,8 +67,8 @@ func TestToFloat(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := ToFloat(tt.input)
-			assert.NoError(t, err)
+			result, ok := ToFloat(tt.input)
+			_ = ok
 			if tt.expected == nil {
 				assert.Nil(t, result)
 			} else {
@@ -97,8 +97,8 @@ func TestToTime(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := ToTime(tt.input)
-			assert.NoError(t, err)
+			result, ok := ToTime(tt.input)
+			_ = ok
 
 			if tt.shouldPass {
 				assert.NotNil(t, result)
@@ -132,8 +132,8 @@ func TestToLiteralDate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := handler(tt.input)
-			assert.NoError(t, err)
+			result, ok := handler(tt.input)
+			_ = ok
 
 			if tt.shouldPass {
 				assert.NotNil(t, result)
@@ -167,8 +167,8 @@ func TestToZonedDateTime(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := handler(tt.input)
-			assert.NoError(t, err)
+			result, ok := handler(tt.input)
+			_ = ok
 
 			if tt.shouldPass {
 				assert.NotNil(t, result)
